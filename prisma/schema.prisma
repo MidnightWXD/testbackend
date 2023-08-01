@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  Guest
+  Admin
+  Mentor
+  Mentee
+}
+
+enum MentorStatus {
+  Pending
+  Verified
+  Rejected
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  firstName          String?
+  lastName           String?
+  picture            String?
+  email              String       @unique
+  password           String
+  gender             String?
+  phone              String?
+  location           Location?
+  role               UserRole
+  bio                String?
+  language           String?
+  title              String?
+  socialMedia        SocialMedia?
+  googleID           String?
+  resetPasswordToken String?
+  loginCount         Int          @default(0)
+  hasProfileSet      Boolean      @default(false)
+
+  // Mentor
+  organization       String?
+  tags               String[]
+  skills             Skill[]
+  status             MentorStatus?
+  mentorApplication  MentorApplication?
+  mentorAvailability MentorAvailability?
+  mentorRequests     Request[]           @relation("MentorRequests")
+  mentorMeetings     Meeting[]           @relation("MentorMeetings")
+
+  // Mentee
+  education           String?
+  menteeRequests      Request[]            @relation("MenteeRequests")
+  menteeMeetings      Meeting[]            @relation("MenteeMeetings")
+  menteeQuestionnaire MenteeQuestionnaire?
+
+  // 
+  webVitals WebVitals?
+}
+
+model Location {
+  id       String  @id @default(cuid())
+  country  String?
+  province String?
+  city     String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String  @unique
+}
+
+model SocialMedia {
+  id        String  @id @default(cuid())
+  twitter   String?
+  facebook  String?
+  instagram String?
+  linkedIn  String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String  @unique
+}
+
+model Skill {
+  id          String @id @default(cuid())
+  skill       String
+  proficiency Int
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+}
+
+model MenteeQuestionnaire {
+  id               String   @id @default(cuid())
+  meetingType      String[] // don't know why this is an array
+  currentGoals     String[]
+  industry         String[] // don't know why this is an array
+  skillsOfInterest String[]
+  mentee           User     @relation(fields: [menteeId], references: [id], onDelete: Cascade)
+  menteeId         String   @unique
+}
+
+model MentorApplication {
+  id              String         @id @default(cuid())
+  mentor          User           @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorId        String         @unique
+  firstName       String
+  lastName        String
+  email           String         @unique
+  country         String
+  province        String
+  city            String
+  resume          String
+  supportingFiles String[]
+  date            DateTime       @default(now())
+  portfolio       String[]
+  questionnaire   Questionnaire?
+  consent         Boolean
+  signature       String
+}
+
+model Questionnaire {
+  id            String            @id @default(cuid())
+  q1            String
+  q2            String
+  q3            String
+  q4            String
+  application   MentorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String            @unique
+}
+
+model MentorAvailability {
+  id                  String               @id @default(cuid())
+  user                User                 @relation(fields: [mentor], references: [id], onDelete: Cascade)
+  // ^ should be `mentor`, keeping for compatibility
+  mentor              String               @unique
+  // ^ should be `mentorId`, keeping for compatibility
+  isAvailable         Boolean?
+  note                Note[]
+  // ^ should be `notes`, keeping for compatibility
+  meetingAvailability MeetingAvailability?
+}
+
+model Note {
+  id                   String             @id @default(cuid())
+  note                 String?
+  dateTime             String? // Joshua made this `String` instead of a `Date`; keeping his logic
+  mentorAvailability   MentorAvailability @relation(fields: [mentorAvailabilityId], references: [id], onDelete: Cascade)
+  mentorAvailabilityId String
+}
+
+model MeetingAvailability {
+  id                   String             @id @default(cuid())
+  daily                Availability[]     @relation("DailyAvailability")
+  weekly               Availability[]     @relation("WeeklyAvailability")
+  monthly              Availability[]     @relation("MonthlyAvailability")
+  specific             Availability[]     @relation("SpecificAvailability")
+  mentorAvailability   MentorAvailability @relation(fields: [mentorAvailabilityId], references: [id], onDelete: Cascade)
+  mentorAvailabilityId String             @unique
+}
+
+model Availability {
+  id            String               @id @default(cuid())
+  startDateTime String? // Joshua made this `String` instead of a `Date`; keeping his logic
+  endDateTime   String? // ^
+  daily         MeetingAvailability? @relation("DailyAvailability", fields: [dailyId], references: [id], onDelete: Cascade)
+  dailyId       String?
+  weekly        MeetingAvailability? @relation("WeeklyAvailability", fields: [weeklyId], references: [id], onDelete: Cascade)
+  weeklyId      String?
+  monthly       MeetingAvailability? @relation("MonthlyAvailability", fields: [monthlyId], references: [id], onDelete: Cascade)
+  monthlyId     String?
+  specific      MeetingAvailability? @relation("SpecificAvailability", fields: [specificId], references: [id], onDelete: Cascade)
+  specificId    String?
+}
+
+model Meeting {
+  id             String @id @default(cuid())
+  mentor         User   @relation("MentorMeetings", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorId       String
+  mentee         User   @relation("MenteeMeetings", fields: [menteeId], references: [id], onDelete: Cascade)
+  menteeId       String
+  startDateTime  String // Joshua made this `String` instead of a `Date`; keeping his logic
+  endDateTime    String // ^
+  meetingMethod  String
+  googleMeetLink String
+}
+
+enum RequestStatus {
+  Sending
+  Read
+  Accepted
+  Rejected
+}
+
+model Request {
+  id                 String        @id @default(cuid())
+  mentor             User          @relation("MentorRequests", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorId           String
+  mentee             User          @relation("MenteeRequests", fields: [menteeId], references: [id], onDelete: Cascade)
+  menteeId           String
+  status             RequestStatus @default(Sending)
+  goal               String?
+  description        String?
+  hopeFromMentorship String?
+  timeline           String?
+
+  @@unique([mentorId, menteeId]) // enforce that a mentee can only make a request for a mentor once
+}
+
+model WebVitals {
+  id        String    @id @default(cuid())
+  type      String?
+  value     String?
+  startTime DateTime?
+  endTime   DateTime?
+  ipAddress String?
+  pageUrl   String?
+  loadCount Int       @default(0)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String    @unique
+}

@@ -1,0 +1,21 @@
+# the dependencies
+node_modules
+
+# api keys
+.env
+
+# build
+build
+
+# testing
+coverage
+
+# the private key for JWT authentication
+priv_key.pem
+
+# personal vscode settings
+.vscode
+
+# non-npm lock files
+yarn.lock
+pnpm-lock.yaml
